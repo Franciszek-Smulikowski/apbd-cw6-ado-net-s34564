@@ -45,4 +45,66 @@ public class AppointmentsController : ControllerBase
 
         return Ok(appointment);
     }
+
+    [HttpPost]
+    public async Task<ActionResult<AppointmentDetailsDto>> CreateAppointment(
+        CreateAppointmentRequestDto request,
+        CancellationToken cancellationToken)
+    {
+        var result = await _appointmentService.CreateAppointmentAsync(request, cancellationToken);
+        if (result.Status != AppointmentOperationStatus.Success)
+        {
+            return ToErrorResult(result);
+        }
+
+        return CreatedAtAction(
+            nameof(GetAppointment),
+            new { idAppointment = result.Value!.IdAppointment },
+            result.Value);
+    }
+
+    [HttpPut("{idAppointment:int}")]
+    public async Task<ActionResult<AppointmentDetailsDto>> UpdateAppointment(
+        int idAppointment,
+        UpdateAppointmentRequestDto request,
+        CancellationToken cancellationToken)
+    {
+        var result = await _appointmentService.UpdateAppointmentAsync(idAppointment, request, cancellationToken);
+        if (result.Status != AppointmentOperationStatus.Success)
+        {
+            return ToErrorResult(result);
+        }
+
+        return Ok(result.Value);
+    }
+
+    [HttpDelete("{idAppointment:int}")]
+    public async Task<IActionResult> DeleteAppointment(
+        int idAppointment,
+        CancellationToken cancellationToken)
+    {
+        var result = await _appointmentService.DeleteAppointmentAsync(idAppointment, cancellationToken);
+        if (result.Status != AppointmentOperationStatus.Success)
+        {
+            return ToErrorResult(result);
+        }
+
+        return NoContent();
+    }
+
+    private ActionResult ToErrorResult(AppointmentOperationResult result)
+    {
+        var error = new ErrorDto
+        {
+            Message = result.ErrorMessage ?? "An error occurred."
+        };
+
+        return result.Status switch
+        {
+            AppointmentOperationStatus.BadRequest => BadRequest(error),
+            AppointmentOperationStatus.NotFound => NotFound(error),
+            AppointmentOperationStatus.Conflict => Conflict(error),
+            _ => BadRequest(error)
+        };
+    }
 }

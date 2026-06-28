@@ -18,3 +18,32 @@ Accept: application/json
 GET {{apbd_cw6_ado_net_s34564_HostAddress}}/api/appointments/1
 Accept: application/json
 
+###
+
+POST {{apbd_cw6_ado_net_s34564_HostAddress}}/api/appointments
+Content-Type: application/json
+
+{
+  "idPatient": 1,
+  "idDoctor": 2,
+  "appointmentDate": "2026-07-20T10:30:00",
+  "reason": "Control visit"
+}
+
+###
+
+PUT {{apbd_cw6_ado_net_s34564_HostAddress}}/api/appointments/1
+Content-Type: application/json
+
+{
+  "idPatient": 1,
+  "idDoctor": 1,
+  "appointmentDate": "2026-07-22T12:00:00",
+  "status": "Scheduled",
+  "reason": "Rescheduled cardiology consultation",
+  "internalNotes": "Patient asked for a later hour."
+}
+
+###
+
+DELETE {{apbd_cw6_ado_net_s34564_HostAddress}}/api/appointments/1

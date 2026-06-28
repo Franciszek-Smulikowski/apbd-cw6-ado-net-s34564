@@ -5,6 +5,8 @@ public class AppointmentDetailsDto
     public int IdAppointment { get; set; }
     public DateTime Date { get; set; }
     public string Status { get; set; } = string.Empty;
+    public string Reason { get; set; } = string.Empty;
+    public string? InternalNotes { get; set; }
     public PatientDto Patient { get; set; } = new();
     public DoctorDto Doctor { get; set; } = new();
     public List<AppointmentServiceDto> Services { get; set; } = [];
