@@ -1,0 +1,20 @@
+@apbd_cw6_ado_net_s34564_HostAddress = http://localhost:5217
+
+GET {{apbd_cw6_ado_net_s34564_HostAddress}}/api/appointments
+Accept: application/json
+
+###
+
+GET {{apbd_cw6_ado_net_s34564_HostAddress}}/api/appointments?status=Scheduled
+Accept: application/json
+
+###
+
+GET {{apbd_cw6_ado_net_s34564_HostAddress}}/api/appointments?patientLastName=Kowalski
+Accept: application/json
+
+###
+
+GET {{apbd_cw6_ado_net_s34564_HostAddress}}/api/appointments/1
+Accept: application/json
+
