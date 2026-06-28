@@ -31,7 +31,7 @@ public class AppointmentService : IAppointmentService
         var query = new StringBuilder("""
             SELECT
                 a.IdAppointment,
-                a.[Date],
+                a.AppointmentDate AS [Date],
                 a.[Status],
                 p.IdPatient,
                 p.FirstName AS PatientFirstName,
@@ -39,9 +39,9 @@ public class AppointmentService : IAppointmentService
                 d.IdDoctor,
                 d.FirstName AS DoctorFirstName,
                 d.LastName AS DoctorLastName
-            FROM [Appointment] a
-            INNER JOIN [Patient] p ON p.IdPatient = a.IdPatient
-            INNER JOIN [Doctor] d ON d.IdDoctor = a.IdDoctor
+            FROM [Appointments] a
+            INNER JOIN [Patients] p ON p.IdPatient = a.IdPatient
+            INNER JOIN [Doctors] d ON d.IdDoctor = a.IdDoctor
             WHERE 1 = 1
             """);
 
@@ -64,7 +64,7 @@ public class AppointmentService : IAppointmentService
             command.Parameters.Add("@PatientLastName", SqlDbType.NVarChar, 100).Value = $"{patientLastName}%";
         }
 
-        query.AppendLine("ORDER BY a.[Date], a.IdAppointment");
+        query.AppendLine("ORDER BY a.AppointmentDate, a.IdAppointment");
         command.CommandText = query.ToString();
 
         await connection.OpenAsync(cancellationToken);
@@ -102,7 +102,6 @@ public class AppointmentService : IAppointmentService
             return null;
         }
 
-        appointment.Services = await GetAppointmentServicesAsync(connection, idAppointment, cancellationToken);
         return appointment;
     }
 
@@ -135,7 +134,7 @@ public class AppointmentService : IAppointmentService
         }
 
         const string query = """
-            INSERT INTO [Appointment] (IdPatient, IdDoctor, [Date], [Status], Reason)
+            INSERT INTO [Appointments] (IdPatient, IdDoctor, AppointmentDate, [Status], Reason)
             OUTPUT INSERTED.IdAppointment
             VALUES (@IdPatient, @IdDoctor, @Date, @Status, @Reason)
             """;
@@ -199,10 +198,10 @@ public class AppointmentService : IAppointmentService
         }
 
         const string query = """
-            UPDATE [Appointment]
+            UPDATE [Appointments]
             SET IdPatient = @IdPatient,
                 IdDoctor = @IdDoctor,
-                [Date] = @Date,
+                AppointmentDate = @Date,
                 [Status] = @Status,
                 Reason = @Reason,
                 InternalNotes = @InternalNotes
@@ -243,31 +242,15 @@ public class AppointmentService : IAppointmentService
             return AppointmentOperationResult.Conflict("Completed appointments cannot be deleted.");
         }
 
-        await using var transaction = (SqlTransaction)await connection.BeginTransactionAsync(cancellationToken);
-
-        const string deleteServicesQuery = """
-            DELETE FROM [Appointment_Service]
-            WHERE IdAppointment = @IdAppointment
-            """;
-
-        await using (var deleteServicesCommand = new SqlCommand(deleteServicesQuery, connection, transaction))
-        {
-            deleteServicesCommand.Parameters.Add("@IdAppointment", SqlDbType.Int).Value = idAppointment;
-            await deleteServicesCommand.ExecuteNonQueryAsync(cancellationToken);
-        }
-
         const string deleteAppointmentQuery = """
-            DELETE FROM [Appointment]
+            DELETE FROM [Appointments]
             WHERE IdAppointment = @IdAppointment
             """;
 
-        await using (var deleteAppointmentCommand = new SqlCommand(deleteAppointmentQuery, connection, transaction))
-        {
-            deleteAppointmentCommand.Parameters.Add("@IdAppointment", SqlDbType.Int).Value = idAppointment;
-            await deleteAppointmentCommand.ExecuteNonQueryAsync(cancellationToken);
-        }
+        await using var deleteAppointmentCommand = new SqlCommand(deleteAppointmentQuery, connection);
+        deleteAppointmentCommand.Parameters.Add("@IdAppointment", SqlDbType.Int).Value = idAppointment;
+        await deleteAppointmentCommand.ExecuteNonQueryAsync(cancellationToken);
 
-        await transaction.CommitAsync(cancellationToken);
         return AppointmentOperationResult.Success();
     }
 
@@ -296,7 +279,7 @@ public class AppointmentService : IAppointmentService
 
         if (request.InternalNotes is not null && request.InternalNotes.Length > 500)
         {
-            return "InternalNotes can have maximum 500 characters.";
+            return "InternalNotes cannot be longer than 500 characters.";
         }
 
         return null;
@@ -306,12 +289,12 @@ public class AppointmentService : IAppointmentService
     {
         if (string.IsNullOrWhiteSpace(reason))
         {
-            return "Reason cannot be empty.";
+            return "Reason is required.";
         }
 
         if (reason.Length > 250)
         {
-            return "Reason can have maximum 250 characters.";
+            return "Reason cannot be longer than 250 characters.";
         }
 
         return null;
@@ -329,7 +312,7 @@ public class AppointmentService : IAppointmentService
     {
         const string query = """
             SELECT COUNT(1)
-            FROM [Patient]
+            FROM [Patients]
             WHERE IdPatient = @IdPatient AND IsActive = 1
             """;
 
@@ -346,7 +329,7 @@ public class AppointmentService : IAppointmentService
     {
         const string query = """
             SELECT COUNT(1)
-            FROM [Doctor]
+            FROM [Doctors]
             WHERE IdDoctor = @IdDoctor AND IsActive = 1
             """;
 
@@ -365,9 +348,9 @@ public class AppointmentService : IAppointmentService
     {
         var query = new StringBuilder("""
             SELECT COUNT(1)
-            FROM [Appointment]
+            FROM [Appointments]
             WHERE IdDoctor = @IdDoctor
-              AND [Date] = @Date
+              AND AppointmentDate = @Date
               AND [Status] = @Status
             """);
 
@@ -382,6 +365,7 @@ public class AppointmentService : IAppointmentService
 
         if (ignoredAppointmentId is not null)
         {
+            query.AppendLine();
             query.AppendLine("AND IdAppointment <> @IgnoredAppointmentId");
             command.Parameters.Add("@IgnoredAppointmentId", SqlDbType.Int).Value = ignoredAppointmentId.Value;
         }
@@ -396,8 +380,8 @@ public class AppointmentService : IAppointmentService
         CancellationToken cancellationToken)
     {
         const string query = """
-            SELECT [Date], [Status]
-            FROM [Appointment]
+            SELECT AppointmentDate AS [Date], [Status]
+            FROM [Appointments]
             WHERE IdAppointment = @IdAppointment
             """;
 
@@ -423,7 +407,7 @@ public class AppointmentService : IAppointmentService
         const string query = """
             SELECT
                 a.IdAppointment,
-                a.[Date],
+                a.AppointmentDate AS [Date],
                 a.[Status],
                 a.Reason,
                 a.InternalNotes,
@@ -434,10 +418,10 @@ public class AppointmentService : IAppointmentService
                 d.IdDoctor,
                 d.FirstName AS DoctorFirstName,
                 d.LastName AS DoctorLastName,
-                d.Email
-            FROM [Appointment] a
-            INNER JOIN [Patient] p ON p.IdPatient = a.IdPatient
-            INNER JOIN [Doctor] d ON d.IdDoctor = a.IdDoctor
+                d.LicenseNumber
+            FROM [Appointments] a
+            INNER JOIN [Patients] p ON p.IdPatient = a.IdPatient
+            INNER JOIN [Doctors] d ON d.IdDoctor = a.IdDoctor
             WHERE a.IdAppointment = @IdAppointment
             """;
 
@@ -469,43 +453,9 @@ public class AppointmentService : IAppointmentService
                 IdDoctor = reader.GetInt32(reader.GetOrdinal("IdDoctor")),
                 FirstName = reader.GetString(reader.GetOrdinal("DoctorFirstName")),
                 LastName = reader.GetString(reader.GetOrdinal("DoctorLastName")),
-                Email = GetNullableString(reader, "Email")
+                LicenseNumber = reader.GetString(reader.GetOrdinal("LicenseNumber"))
             }
         };
-    }
-
-    private static async Task<List<AppointmentServiceDto>> GetAppointmentServicesAsync(
-        SqlConnection connection,
-        int idAppointment,
-        CancellationToken cancellationToken)
-    {
-        const string query = """
-            SELECT
-                s.IdService,
-                s.[Name],
-                aps.ServiceFee
-            FROM [Appointment_Service] aps
-            INNER JOIN [Service] s ON s.IdService = aps.IdService
-            WHERE aps.IdAppointment = @IdAppointment
-            ORDER BY s.[Name]
-            """;
-
-        var services = new List<AppointmentServiceDto>();
-        await using var command = new SqlCommand(query, connection);
-        command.Parameters.Add("@IdAppointment", SqlDbType.Int).Value = idAppointment;
-
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        while (await reader.ReadAsync(cancellationToken))
-        {
-            services.Add(new AppointmentServiceDto
-            {
-                IdService = reader.GetInt32(reader.GetOrdinal("IdService")),
-                Name = reader.GetString(reader.GetOrdinal("Name")),
-                ServiceFee = GetNullableDecimal(reader, "ServiceFee")
-            });
-        }
-
-        return services;
     }
 
     private static string? GetNullableString(SqlDataReader reader, string columnName)
@@ -518,12 +468,6 @@ public class AppointmentService : IAppointmentService
     {
         var ordinal = reader.GetOrdinal(columnName);
         return reader.IsDBNull(ordinal) ? null : reader.GetDateTime(ordinal);
-    }
-
-    private static decimal? GetNullableDecimal(SqlDataReader reader, string columnName)
-    {
-        var ordinal = reader.GetOrdinal(columnName);
-        return reader.IsDBNull(ordinal) ? null : reader.GetDecimal(ordinal);
     }
 
     private sealed record CurrentAppointmentState(DateTime Date, string Status);

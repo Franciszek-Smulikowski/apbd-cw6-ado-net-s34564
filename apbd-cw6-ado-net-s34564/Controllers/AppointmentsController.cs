@@ -30,7 +30,7 @@ public class AppointmentsController : ControllerBase
     }
 
     [HttpGet("{idAppointment:int}")]
-    public async Task<ActionResult<AppointmentDetailsDto>> GetAppointment(
+    public async Task<ActionResult<AppointmentDetailsDto>> GetAppointmentById(
         int idAppointment,
         CancellationToken cancellationToken)
     {
@@ -58,7 +58,7 @@ public class AppointmentsController : ControllerBase
         }
 
         return CreatedAtAction(
-            nameof(GetAppointment),
+            nameof(GetAppointmentById),
             new { idAppointment = result.Value!.IdAppointment },
             result.Value);
     }

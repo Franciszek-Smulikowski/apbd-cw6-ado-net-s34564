@@ -1,49 +1,91 @@
 @apbd_cw6_ado_net_s34564_HostAddress = http://localhost:5217
 
+### GET all appointments
 GET {{apbd_cw6_ado_net_s34564_HostAddress}}/api/appointments
 Accept: application/json
 
-###
-
+### GET appointments by status
 GET {{apbd_cw6_ado_net_s34564_HostAddress}}/api/appointments?status=Scheduled
 Accept: application/json
 
-###
-
-GET {{apbd_cw6_ado_net_s34564_HostAddress}}/api/appointments?patientLastName=Kowalski
+### GET appointments by patient last name
+GET {{apbd_cw6_ado_net_s34564_HostAddress}}/api/appointments?patientLastName=Kowalska
 Accept: application/json
 
-###
-
+### GET appointment by id
 GET {{apbd_cw6_ado_net_s34564_HostAddress}}/api/appointments/1
 Accept: application/json
 
-###
+### GET invalid appointment id
+GET {{apbd_cw6_ado_net_s34564_HostAddress}}/api/appointments/999999
+Accept: application/json
 
+### POST valid appointment
 POST {{apbd_cw6_ado_net_s34564_HostAddress}}/api/appointments
 Content-Type: application/json
+Accept: application/json
 
 {
   "idPatient": 1,
   "idDoctor": 2,
-  "appointmentDate": "2026-07-20T10:30:00",
+  "appointmentDate": "2027-07-20T10:30:00",
   "reason": "Control visit"
 }
 
-###
+### POST invalid appointment - past date
+POST {{apbd_cw6_ado_net_s34564_HostAddress}}/api/appointments
+Content-Type: application/json
+Accept: application/json
 
+{
+  "idPatient": 1,
+  "idDoctor": 2,
+  "appointmentDate": "2020-01-01T10:30:00",
+  "reason": "Past visit"
+}
+
+### POST conflict - same doctor and same scheduled date as POST valid
+POST {{apbd_cw6_ado_net_s34564_HostAddress}}/api/appointments
+Content-Type: application/json
+Accept: application/json
+
+{
+  "idPatient": 1,
+  "idDoctor": 2,
+  "appointmentDate": "2027-07-20T10:30:00",
+  "reason": "Conflicting visit"
+}
+
+### PUT valid appointment
 PUT {{apbd_cw6_ado_net_s34564_HostAddress}}/api/appointments/1
 Content-Type: application/json
+Accept: application/json
 
 {
   "idPatient": 1,
   "idDoctor": 1,
-  "appointmentDate": "2026-07-22T12:00:00",
+  "appointmentDate": "2027-07-22T12:00:00",
   "status": "Scheduled",
   "reason": "Rescheduled cardiology consultation",
   "internalNotes": "Patient asked for a later hour."
 }
 
-###
+### PUT invalid status
+PUT {{apbd_cw6_ado_net_s34564_HostAddress}}/api/appointments/1
+Content-Type: application/json
+Accept: application/json
 
-DELETE {{apbd_cw6_ado_net_s34564_HostAddress}}/api/appointments/1
+{
+  "idPatient": 1,
+  "idDoctor": 1,
+  "appointmentDate": "2027-07-22T12:00:00",
+  "status": "Unknown",
+  "reason": "Invalid status check",
+  "internalNotes": null
+}
+
+### DELETE valid appointment - replace id with an appointment created for manual testing
+DELETE {{apbd_cw6_ado_net_s34564_HostAddress}}/api/appointments/5
+
+### DELETE conflict - seeded appointment with status Completed
+DELETE {{apbd_cw6_ado_net_s34564_HostAddress}}/api/appointments/4
