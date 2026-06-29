@@ -33,6 +33,7 @@ public class AppointmentService : IAppointmentService
                 a.IdAppointment,
                 a.AppointmentDate AS [Date],
                 a.[Status],
+                a.Reason,
                 p.IdPatient,
                 p.FirstName AS PatientFirstName,
                 p.LastName AS PatientLastName,
@@ -77,6 +78,7 @@ public class AppointmentService : IAppointmentService
                 IdAppointment = reader.GetInt32(reader.GetOrdinal("IdAppointment")),
                 Date = reader.GetDateTime(reader.GetOrdinal("Date")),
                 Status = reader.GetString(reader.GetOrdinal("Status")),
+                Reason = reader.GetString(reader.GetOrdinal("Reason")),
                 IdPatient = reader.GetInt32(reader.GetOrdinal("IdPatient")),
                 PatientFirstName = reader.GetString(reader.GetOrdinal("PatientFirstName")),
                 PatientLastName = reader.GetString(reader.GetOrdinal("PatientLastName")),
@@ -183,6 +185,7 @@ public class AppointmentService : IAppointmentService
         }
 
         var dateChanged = currentAppointment.Date != request.AppointmentDate;
+        var doctorChanged = currentAppointment.IdDoctor != request.IdDoctor;
         if (dateChanged
             && (currentAppointment.Status.Equals("Completed", StringComparison.OrdinalIgnoreCase)
                 || request.Status.Equals("Completed", StringComparison.OrdinalIgnoreCase)))
@@ -190,7 +193,7 @@ public class AppointmentService : IAppointmentService
             return AppointmentOperationResult<AppointmentDetailsDto>.Conflict("Completed appointments cannot have their date changed.");
         }
 
-        if (dateChanged
+        if ((dateChanged || doctorChanged)
             && request.Status.Equals("Scheduled", StringComparison.OrdinalIgnoreCase)
             && await DoctorHasScheduledAppointmentAsync(connection, request.IdDoctor, request.AppointmentDate, idAppointment, cancellationToken))
         {
@@ -380,7 +383,7 @@ public class AppointmentService : IAppointmentService
         CancellationToken cancellationToken)
     {
         const string query = """
-            SELECT AppointmentDate AS [Date], [Status]
+            SELECT AppointmentDate AS [Date], IdDoctor, [Status]
             FROM [Appointments]
             WHERE IdAppointment = @IdAppointment
             """;
@@ -396,6 +399,7 @@ public class AppointmentService : IAppointmentService
 
         return new CurrentAppointmentState(
             reader.GetDateTime(reader.GetOrdinal("Date")),
+            reader.GetInt32(reader.GetOrdinal("IdDoctor")),
             reader.GetString(reader.GetOrdinal("Status")));
     }
 
@@ -408,20 +412,25 @@ public class AppointmentService : IAppointmentService
             SELECT
                 a.IdAppointment,
                 a.AppointmentDate AS [Date],
+                a.CreatedAt,
                 a.[Status],
                 a.Reason,
                 a.InternalNotes,
                 p.IdPatient,
                 p.FirstName AS PatientFirstName,
                 p.LastName AS PatientLastName,
+                p.Email,
+                p.PhoneNumber,
                 p.DateOfBirth,
                 d.IdDoctor,
                 d.FirstName AS DoctorFirstName,
                 d.LastName AS DoctorLastName,
-                d.LicenseNumber
+                d.LicenseNumber,
+                s.Name AS SpecializationName
             FROM [Appointments] a
             INNER JOIN [Patients] p ON p.IdPatient = a.IdPatient
             INNER JOIN [Doctors] d ON d.IdDoctor = a.IdDoctor
+            INNER JOIN [Specializations] s ON s.IdSpecialization = d.IdSpecialization
             WHERE a.IdAppointment = @IdAppointment
             """;
 
@@ -438,6 +447,7 @@ public class AppointmentService : IAppointmentService
         {
             IdAppointment = reader.GetInt32(reader.GetOrdinal("IdAppointment")),
             Date = reader.GetDateTime(reader.GetOrdinal("Date")),
+            CreatedAt = reader.GetDateTime(reader.GetOrdinal("CreatedAt")),
             Status = reader.GetString(reader.GetOrdinal("Status")),
             Reason = reader.GetString(reader.GetOrdinal("Reason")),
             InternalNotes = GetNullableString(reader, "InternalNotes"),
@@ -446,6 +456,8 @@ public class AppointmentService : IAppointmentService
                 IdPatient = reader.GetInt32(reader.GetOrdinal("IdPatient")),
                 FirstName = reader.GetString(reader.GetOrdinal("PatientFirstName")),
                 LastName = reader.GetString(reader.GetOrdinal("PatientLastName")),
+                Email = reader.GetString(reader.GetOrdinal("Email")),
+                PhoneNumber = reader.GetString(reader.GetOrdinal("PhoneNumber")),
                 DateOfBirth = GetNullableDateTime(reader, "DateOfBirth")
             },
             Doctor = new DoctorDto
@@ -453,7 +465,8 @@ public class AppointmentService : IAppointmentService
                 IdDoctor = reader.GetInt32(reader.GetOrdinal("IdDoctor")),
                 FirstName = reader.GetString(reader.GetOrdinal("DoctorFirstName")),
                 LastName = reader.GetString(reader.GetOrdinal("DoctorLastName")),
-                LicenseNumber = reader.GetString(reader.GetOrdinal("LicenseNumber"))
+                LicenseNumber = reader.GetString(reader.GetOrdinal("LicenseNumber")),
+                SpecializationName = reader.GetString(reader.GetOrdinal("SpecializationName"))
             }
         };
     }
@@ -470,5 +483,5 @@ public class AppointmentService : IAppointmentService
         return reader.IsDBNull(ordinal) ? null : reader.GetDateTime(ordinal);
     }
 
-    private sealed record CurrentAppointmentState(DateTime Date, string Status);
+    private sealed record CurrentAppointmentState(DateTime Date, int IdDoctor, string Status);
 }

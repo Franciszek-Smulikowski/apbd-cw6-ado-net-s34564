@@ -5,6 +5,7 @@ public class AppointmentListDto
     public int IdAppointment { get; set; }
     public DateTime Date { get; set; }
     public string Status { get; set; } = string.Empty;
+    public string Reason { get; set; } = string.Empty;
     public int IdPatient { get; set; }
     public string PatientFirstName { get; set; } = string.Empty;
     public string PatientLastName { get; set; } = string.Empty;
